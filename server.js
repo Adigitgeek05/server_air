@@ -18,7 +18,7 @@ app.post("/api/data", (req, res) => {
   const { temperature, humidity, mq135, pm25, pm10 } = req.body;
 
   // Log received data
-  console.log("📩 Received data from ESP8266:", req.body);
+  console.log("Received data from ESP8266:", req.body);
 
   // Validate fields (ESP can sometimes send null or NaN)
   if (
@@ -40,7 +40,7 @@ app.post("/api/data", (req, res) => {
     pm10: isNaN(pm10) ? 0 : pm10,
   };
 
-  console.log("✅ Clean data:", safeData);
+  console.log("Clean data:", safeData);
 
   // TODO: Save safeData to DB or forward to frontend
   res.status(200).json({ message: "Data received successfully" });
@@ -48,4 +48,4 @@ app.post("/api/data", (req, res) => {
 
 // ✅ Fix syntax in your listen() function
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log(🚀 Server running on port ${PORT}));
+app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
