@@ -5,7 +5,7 @@ const app = express();
 app.use(bodyParser.json());
 
 app.post("/api/data", (req, res) => {
-  const { temperature, humidity, airQuality, pm25, pm10 } = req.body;
+  const { temperature, humidity, mq135, pm25, pm10 } = req.body;
   console.log("Received data:", req.body);
   // Store to DB or send to frontend via websocket
   res.status(200).send({ message: "Data received successfully" });
