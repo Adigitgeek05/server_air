@@ -1,8 +1,12 @@
 import express from "express";
+import cors from "cors";
 import bodyParser from "body-parser";
 
 const app = express();
 app.use(bodyParser.json());
+
+
+app.use(cors()); // Add this before your routes
 
 // ✅ In-memory storage (temporary)
 let latestData = null;
