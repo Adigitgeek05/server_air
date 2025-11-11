@@ -13,14 +13,33 @@ app.use((err, req, res, next) => {
   next();
 });
 
+// ✅ Middleware to fix non-standard JSON (like NaN)
+app.use(express.text({ type: "application/json" }));
+
+app.use((req, res, next) => {
+  if (typeof req.body === "string") {
+    try {
+      // Replace invalid JSON tokens like NaN or Infinity
+      const safe = req.body
+        .replace(/\bNaN\b/gi, "null")
+        .replace(/\bInfinity\b/gi, "null")
+        .replace(/\bundefined\b/gi, "null");
+      req.body = JSON.parse(safe);
+    } catch (e) {
+      console.error("Failed to parse fixed JSON:", e);
+      return res.status(400).json({ error: "Invalid JSON data" });
+    }
+  }
+  next();
+});
+
 // ✅ Main route for ESP8266 data
 app.post("/api/data", (req, res) => {
   const { temperature, humidity, mq135, pm25, pm10 } = req.body;
 
-  // Log received data
   console.log("Received data from ESP8266:", req.body);
 
-  // Validate fields (ESP can sometimes send null or NaN)
+  // Validate fields
   if (
     temperature === undefined ||
     humidity === undefined ||
@@ -31,21 +50,20 @@ app.post("/api/data", (req, res) => {
     return res.status(400).json({ error: "Missing one or more fields" });
   }
 
-  // Optional: sanitize bad numeric values
   const safeData = {
-    temperature: isNaN(temperature) ? 0 : temperature,
-    humidity: isNaN(humidity) ? 0 : humidity,
-    mq135: isNaN(mq135) ? 0 : mq135,
-    pm25: isNaN(pm25) ? 0 : pm25,
-    pm10: isNaN(pm10) ? 0 : pm10,
+    temperature: Number(temperature) || 0,
+    humidity: Number(humidity) || 0,
+    mq135: Number(mq135) || 0,
+    pm25: Number(pm25) || 0,
+    pm10: Number(pm10) || 0,
   };
 
   console.log("Clean data:", safeData);
 
   // TODO: Save safeData to DB or forward to frontend
-  res.status(200).json({ message: "Data received successfully" });
+  res.status(200).json({ message: "Data received successfully", data: safeData });
 });
 
-// ✅ Fix syntax in your listen() function
+// ✅ Start server
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
