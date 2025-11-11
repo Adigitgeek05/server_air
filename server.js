@@ -15,37 +15,34 @@ app.use((err, req, res, next) => {
 
 // ✅ Main route for ESP8266 data
 app.post("/api/data", (req, res) => {
-  const { temperature, humidity, mq135, pm25, pm10 } = req.body;
+  let { temperature, humidity, mq135, pm25, pm10 } = req.body;
 
-  // Log received data
-  console.log("Received data from ESP8266:", req.body);
+  console.log("📩 Raw data received:", req.body);
 
-  // Validate fields (ESP can sometimes send null or NaN)
+  // ✅ Convert all to numbers (in case they arrive as strings)
+  temperature = parseFloat(temperature);
+  humidity = parseFloat(humidity);
+  mq135 = parseFloat(mq135);
+  pm25 = parseFloat(pm25);
+  pm10 = parseFloat(pm10);
+
+  // ✅ Validate
   if (
-    temperature === undefined ||
-    humidity === undefined ||
-    mq135 === undefined ||
-    pm25 === undefined ||
-    pm10 === undefined
+    [temperature, humidity, mq135, pm25, pm10].some(
+      (val) => isNaN(val) || val === undefined
+    )
   ) {
-    return res.status(400).json({ error: "Missing one or more fields" });
+    console.error("❌ Invalid data received:", req.body);
+    return res.status(400).json({ error: "Invalid or missing data fields" });
   }
 
-  // Optional: sanitize bad numeric values
-  const safeData = {
-    temperature: isNaN(temperature) ? 0 : temperature,
-    humidity: isNaN(humidity) ? 0 : humidity,
-    mq135: isNaN(mq135) ? 0 : mq135,
-    pm25: isNaN(pm25) ? 0 : pm25,
-    pm10: isNaN(pm10) ? 0 : pm10,
-  };
+  const safeData = { temperature, humidity, mq135, pm25, pm10 };
+  console.log("✅ Clean data:", safeData);
 
-  console.log("Clean data:", safeData);
-
-  // TODO: Save safeData to DB or forward to frontend
-  res.status(200).json({ message: "Data received successfully" });
+  // TODO: Save safeData to database or cache here
+  res.status(200).json({ message: "Data received successfully", data: safeData });
 });
 
-// ✅ Fix syntax in your listen() function
+// ✅ Start server
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+app.listen(PORT, () => console.log(`🚀 Server running on port ${PORT}`));
