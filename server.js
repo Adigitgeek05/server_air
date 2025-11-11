@@ -46,14 +46,23 @@ app.post("/api/data", (req, res) => {
 });
 
 // ✅ GET route (for frontend)
+a// ✅ GET route (for frontend) - Modified to return default data
 app.get("/api/data", (req, res) => {
   if (!latestData) {
-    console.warn("⚠️ No data yet");
-    return res.status(404).json({ error: "No data available yet" });
+    console.warn("⚠️ No data yet, returning default values");
+    // Return default data instead of 404
+    const defaultData = {
+      temperature: 25,
+      humidity: 60,
+      mq135: 250,
+      pm25: 15,
+      pm10: 35,
+      timestamp: new Date()
+    };
+    return res.json(defaultData);
   }
   res.json(latestData);
 });
-
 // ✅ GET route for latest (optional)
 app.get("/api/data/latest", (req, res) => {
   if (!latestData) return res.status(404).json({ error: "No data available yet" });
