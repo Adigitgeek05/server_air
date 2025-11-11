@@ -4,6 +4,14 @@ import bodyParser from "body-parser";
 const app = express();
 app.use(bodyParser.json());
 
+// ✅ Add this route so GET /api/data also works
+app.get("/api/data", (req, res) => {
+  if (!latestData) {
+    return res.status(404).json({ error: "No data available yet" });
+  }
+  res.json(latestData);
+});
+
 // Temporary in-memory storage (for demo)
 let latestData = null;
 let allData = [];
