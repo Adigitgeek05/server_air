@@ -4,6 +4,10 @@ import bodyParser from "body-parser";
 const app = express();
 app.use(bodyParser.json());
 
+// Temporary in-memory storage (for demo)
+let latestData = null;
+let allData = [];
+
 // ✅ Handle JSON parsing errors gracefully
 app.use((err, req, res, next) => {
   if (err instanceof SyntaxError && err.status === 400 && "body" in err) {
@@ -13,34 +17,43 @@ app.use((err, req, res, next) => {
   next();
 });
 
-// ✅ Main route for ESP8266 data
+// ✅ POST route for ESP8266 data
 app.post("/api/data", (req, res) => {
   let { temperature, humidity, mq135, pm25, pm10 } = req.body;
 
   console.log("📩 Raw data received:", req.body);
 
-  // ✅ Convert all to numbers (in case they arrive as strings)
+  // Convert to numbers
   temperature = parseFloat(temperature);
   humidity = parseFloat(humidity);
   mq135 = parseFloat(mq135);
   pm25 = parseFloat(pm25);
   pm10 = parseFloat(pm10);
 
-  // ✅ Validate
-  if (
-    [temperature, humidity, mq135, pm25, pm10].some(
-      (val) => isNaN(val) || val === undefined
-    )
-  ) {
-    console.error("❌ Invalid data received:", req.body);
+  // Validate
+  if ([temperature, humidity, mq135, pm25, pm10].some(v => isNaN(v))) {
+    console.error("Invalid data received:", req.body);
     return res.status(400).json({ error: "Invalid or missing data fields" });
   }
 
-  const safeData = { temperature, humidity, mq135, pm25, pm10 };
-  console.log("✅ Clean data:", safeData);
+  const safeData = { temperature, humidity, mq135, pm25, pm10, timestamp: new Date() };
+  latestData = safeData;       // store latest data
+  allData.push(safeData);      // store all data
 
-  // TODO: Save safeData to database or cache here
+  console.log("✅ Clean data saved:", safeData);
   res.status(200).json({ message: "Data received successfully", data: safeData });
+});
+
+// ✅ GET route to fetch latest data
+app.get("/api/data/latest", (req, res) => {
+  if (!latestData) return res.status(404).json({ error: "No data available yet" });
+  res.json(latestData);
+});
+
+// ✅ GET route to fetch all data
+app.get("/api/data/all", (req, res) => {
+  if (allData.length === 0) return res.status(404).json({ error: "No data available yet" });
+  res.json(allData);
 });
 
 // ✅ Start server
