@@ -1,7 +1,7 @@
 import express from "express";
 import cors from "cors";
 import bodyParser from "body-parser";
-import { initGoogleSDK, callGeminiSDK, executeWeatherTool } from "./googleAiHelper.js";
+import { initGoogleSDK, callGeminiSDK,  } from "./googleAiHelper.js";
 import dotenv from "dotenv";
 dotenv.config();
 
@@ -60,17 +60,23 @@ app.post("/api/data", async (req, res) => {
     const lat = req.query.lat || process.env.WEATHER_LAT;
     const lon = req.query.lon || process.env.WEATHER_LON;
 
+    // Fetch weather data if available
+    let weather = null;
+    if (lat && lon) {
+      weather = await fetchWeather(lat, lon);
+    }
+
     // Use previous latest and recent history (do not overwrite before correction)
     const prevLatest = latestData;
     const prompt = {
-      instruction: 'Compare the newly received sensor reading ("incoming") with the data currently stored/shown ("latest") and recent history. Detect if the incoming reading is anomalous or corrupted. If needed, use the weather tool to fetch current weather for context. Provide a corrected reading. Return a JSON object with: { "corrected": {...sensor fields...}, "flag": "anomaly_detected|weather_adjusted|no_change|error", "reason": "explanation of what was corrected" }. Do not include extra text.',
+      instruction: 'Compare the newly received sensor reading ("incoming") with the data currently stored/shown ("latest") and recent history. Detect if the incoming reading is anomalous or corrupted. Provide a corrected reading. Return a JSON object with: { "corrected": {...sensor fields...}, "flag": "anomaly_detected|weather_adjusted|no_change|error", "reason": "explanation of what was corrected" }. Do not include extra text.',
       incoming: safeData,
       latest: prevLatest,
       history: allData.slice(-20)
     };
 
     console.log(`📡 Calling Gemini for anomaly detection (lat: ${lat}, lon: ${lon})...`);
-    const modelResp = await callGemini(prompt, lat, lon);
+    const modelResp = await callGemini(prompt, lat, lon, weather);
     if (!modelResp || !modelResp.corrected || typeof modelResp.corrected !== 'object') {
       console.error('LLM did not return corrected data or call failed');
       return res.status(502).json({ error: 'LLM did not return corrected data' });
@@ -150,9 +156,9 @@ async function fetchWeather(lat, lon) {
 }
 
 // Helper: call Gemini (placeholder). If GEMINI_ENDPOINT and GEMINI_API_KEY are set, we'll POST the prompt.
-async function callGemini(prompt, lat, lon) {
-  // Use only Google GenAI SDK with function calling (mandatory).
-  return await callGeminiSDK(prompt, lat, lon);
+async function callGemini(prompt, lat, lon, weather) {
+  // Use Google GenAI SDK (weather context passed in prompt).
+  return await callGeminiSDK(prompt, lat, lon, weather);
 }
 
 // Fallback local anomaly detection & simple correction
