@@ -13,7 +13,7 @@ async function initGoogleSDK() {
       return false;
     }
     genai = new GoogleGenerativeAI(apiKey);
-    const modelName = process.env.GEMINI_MODEL || "gemini-2.5-flash";
+    const modelName = process.env.GEMINI_MODEL || "gemini-2.5-flash-lite";
     model = genai.getGenerativeModel({ 
       model: modelName,
       tools: [
