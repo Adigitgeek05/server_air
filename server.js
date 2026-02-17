@@ -1,7 +1,7 @@
 import express from "express";
 import cors from "cors";
 import bodyParser from "body-parser";
-import { initGoogleSDK, callGeminiSDK } from "./googleAiHelper.js";
+import { initGoogleSDK, callGeminiSDK, executeWeatherTool } from "./googleAiHelper.js";
 import dotenv from "dotenv";
 dotenv.config();
 
@@ -59,25 +59,27 @@ app.post("/api/data", async (req, res) => {
   try {
     const lat = req.query.lat || process.env.WEATHER_LAT;
     const lon = req.query.lon || process.env.WEATHER_LON;
-    const weather = (lat && lon) ? await fetchWeather(lat, lon) : null;
 
     // Use previous latest and recent history (do not overwrite before correction)
     const prevLatest = latestData;
     const prompt = {
-      instruction: 'Compare the newly received sensor reading ("incoming") with the data currently stored/shown ("latest") and recent history. Detect if the incoming reading is anomalous or corrupted, and if so, provide a corrected reading. Return a single JSON object named "corrected" with the same fields as the incoming reading. If no correction is needed, return the incoming reading as "corrected". Do not include extra text.',
+      instruction: 'Compare the newly received sensor reading ("incoming") with the data currently stored/shown ("latest") and recent history. Detect if the incoming reading is anomalous or corrupted. If needed, use the weather tool to fetch current weather for context. Provide a corrected reading. Return a JSON object with: { "corrected": {...sensor fields...}, "flag": "anomaly_detected|weather_adjusted|no_change|error", "reason": "explanation of what was corrected" }. Do not include extra text.',
       incoming: safeData,
       latest: prevLatest,
-      history: allData.slice(-20),
-      weather
+      history: allData.slice(-20)
     };
 
-    const modelResp = await callGemini(prompt);
+    console.log(`📡 Calling Gemini for anomaly detection (lat: ${lat}, lon: ${lon})...`);
+    const modelResp = await callGemini(prompt, lat, lon);
     if (!modelResp || !modelResp.corrected || typeof modelResp.corrected !== 'object') {
       console.error('LLM did not return corrected data or call failed');
       return res.status(502).json({ error: 'LLM did not return corrected data' });
     }
 
     const corrected = modelResp.corrected;
+    const flag = modelResp.flag || "no_change";
+    const reason = modelResp.reason || "Data processed by LLM";
+
     // Ensure numeric types and timestamp
     corrected.temperature = parseFloat(corrected.temperature) || safeData.temperature;
     corrected.humidity = parseFloat(corrected.humidity) || safeData.humidity;
@@ -86,12 +88,13 @@ app.post("/api/data", async (req, res) => {
     corrected.pm10 = parseFloat(corrected.pm10) || safeData.pm10;
     corrected.timestamp = new Date();
 
-    // Update latestData and history with LLM-corrected values only.
-    latestData = { ...corrected, _source: 'gemini-corrected' };
+    // Update latestData and history with LLM-corrected values and metadata.
+    latestData = { ...corrected, _source: 'gemini-corrected', flag, reason };
     allData.push(latestData);
 
-    console.log('🧠 Gemini corrected incoming reading:', latestData);
-    return res.status(200).json({ message: 'Data received and corrected', data: latestData, source: 'gemini' });
+    console.log(`🧠 Gemini result: flag=${flag}, reason=${reason}`);
+    console.log('✅ Corrected reading:', latestData);
+    return res.status(200).json({ message: 'Data received and corrected', data: latestData, flag, reason });
   } catch (e) {
     console.error('LLM correction failed:', e && e.message);
     return res.status(500).json({ error: 'LLM correction failed' });
@@ -147,9 +150,9 @@ async function fetchWeather(lat, lon) {
 }
 
 // Helper: call Gemini (placeholder). If GEMINI_ENDPOINT and GEMINI_API_KEY are set, we'll POST the prompt.
-async function callGemini(prompt) {
-  // Use only Google GenAI SDK (mandatory).
-  return await callGeminiSDK(prompt);
+async function callGemini(prompt, lat, lon) {
+  // Use only Google GenAI SDK with function calling (mandatory).
+  return await callGeminiSDK(prompt, lat, lon);
 }
 
 // Fallback local anomaly detection & simple correction
@@ -229,16 +232,20 @@ app.post('/api/analyze', async (req, res) => {
     if (modelResp && modelResp.corrected) {
       // If Gemini returns corrected data, update latestData so frontend always shows corrected values.
       const corrected = modelResp.corrected;
+      const flag = modelResp.flag || "no_change";
+      const reason = modelResp.reason || "Batch analysis by LLM";
+      
       // Accept either an array of corrected objects or single object.
       if (Array.isArray(corrected) && corrected.length > 0) {
         const last = corrected[corrected.length - 1];
-        latestData = { ...last, _source: 'gemini-corrected' };
+        latestData = { ...last, _source: 'gemini-corrected', flag, reason };
         allData.push(latestData);
       } else if (typeof corrected === 'object') {
-        latestData = { ...corrected, _source: 'gemini-corrected' };
+        latestData = { ...corrected, _source: 'gemini-corrected', flag, reason };
         allData.push(latestData);
       }
-      return res.json({ corrected: modelResp.corrected, source: 'gemini', raw: modelResp });
+      console.log(`🔍 Analyze: flag=${flag}, reason=${reason}`);
+      return res.json({ corrected: modelResp.corrected, source: 'gemini', flag, reason });
     }
 
     // Fallback to local simple detection/correction
