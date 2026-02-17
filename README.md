@@ -27,7 +27,7 @@ Important: LLM correction is mandatory in this setup. The server will refuse to 
 **Required environment variables**
 - `USE_GOOGLE_SDK`: Must be set to `1` (SDK is mandatory).
 - `GOOGLE_API_KEY`: Your Google API key for GenAI (get it from [ai.google.dev](https://ai.google.dev/)).
-- `GEMINI_MODEL`: Model name for Google SDK (default: `gemini-1.5-pro`).
+- `GEMINI_MODEL`: Model name for Google SDK (default: `gemini-pro`, available on free tier; or `gemini-1.5-flash` for better performance).
 - `OPENWEATHER_API_KEY`: (optional) OpenWeatherMap API key used for weather context in corrections.
 - `WEATHER_LAT`, `WEATHER_LON`: (optional) defaults for weather lookup if device doesn't provide `lat`/`lon` query.
 - `PORT`: server port (default 3000).

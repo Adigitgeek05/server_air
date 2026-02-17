@@ -8,10 +8,12 @@ dotenv.config();
 const app = express();
 app.use(bodyParser.json());
 
-// Optional: initialize Google GenAI SDK if USE_GOOGLE_SDK=1
+// Initialize Google GenAI SDK if USE_GOOGLE_SDK=1
 const useGoogleSDK = process.env.USE_GOOGLE_SDK === "1";
 if (useGoogleSDK) {
-  initGoogleSDK().catch(e => console.warn("SDK init failed:", e));
+  (async () => {
+    await initGoogleSDK();
+  })().catch(e => console.error("SDK init failed:", e));
 }
 
 app.use(cors()); // Add this before your routes

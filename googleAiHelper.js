@@ -14,7 +14,7 @@ async function initGoogleSDK() {
       return false;
     }
     genai = new GoogleGenerativeAI(apiKey);
-    const modelName = process.env.GEMINI_MODEL || "gemini-1.5-pro";
+    const modelName = process.env.GEMINI_MODEL || "gemini-2.5-flash";
     model = genai.getGenerativeModel({ model: modelName });
     console.log(`✅ Google GenAI SDK initialized with model: ${modelName}`);
     return true;
