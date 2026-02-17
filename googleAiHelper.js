@@ -57,7 +57,14 @@ async function callGeminiSDK(prompt) {
 
     // Try to parse the response as JSON
     try {
-      const parsed = JSON.parse(text);
+      // Strip markdown code blocks if present (```json ... ```)
+      let jsonStr = text.trim();
+      if (jsonStr.startsWith("```json")) {
+        jsonStr = jsonStr.replace(/^```json\n?/, "").replace(/\n?```$/, "");
+      } else if (jsonStr.startsWith("```")) {
+        jsonStr = jsonStr.replace(/^```\n?/, "").replace(/\n?```$/, "");
+      }
+      const parsed = JSON.parse(jsonStr);
       return parsed; // Expecting { corrected: {...} }
     } catch (e) {
       // If it's not JSON, wrap it in a response object
